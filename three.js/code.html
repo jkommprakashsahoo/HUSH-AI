@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #000;
+    }
+  </style>
+</head>
+<body>
+<!-- STITCH_THREEJS_START:ANIMATION_15 class="fixed inset-0 w-full h-full bg-transparent" -->
+<div class="fixed inset-0 w-full h-full bg-transparent" style="display:block;">
+<script src="https://ajax.googleapis.com/ajax/libs/threejs/r125/three.min.js"></script>
+<div id="threejs-container-ANIMATION_15" style="width:100%;height:100%"></div>
+<script>
+(function() {
+  const container = document.getElementById('threejs-container-ANIMATION_15');
+  const devicePixelRatio = window.devicePixelRatio || 1;
+  # Hush — Implementation Specification & Component Architecture for Antigravity (React / Next.js)
+
+This specification translates the high-fidelity **Hush** interface designs (Desktop & Mobile) into a modular, production-ready frontend architecture engineered for **Google Antigravity**, **React 19 / Next.js (App Router)**, **Tailwind CSS**, and the local **Ollama** runtime.
+
+---
+
+## 1. Design Tokens & Theme Configuration
+
+Add these tokens to your `tailwind.config.ts` and global CSS layer:
+
+```ts
+// tailwind.config.ts
+import type { Config } from 'tailwindcss';
+
+const config: Config = {
+  darkMode: 'class',
+  content: ['./app/**/*.{ts,tsx}', './components/**/*.{ts,tsx}'],
+  theme: {
+    extend: {
+      colors: {
+        hush: {
+          bg: '#0B0B12',
+          surface: {
+            DEFAULT: '#12121B',
+            secondary: '#181722',
+            elevated: '#242230',
+            container: '#1f1f26',
+            bright: '#393841',
+          },
+          accent: {
+            violet: '#9D8BFF',
+            lavender: '#C4B5FD',
+            hover: '#8774f5',
+          },
+          border: {
+            DEFAULT: '#343044',
+            subtle: 'rgba(255, 255, 255, 0.08)',
+            active: '#9D8BFF',
+          },
+          text: {
+            primary: '#F3F0FA',
+            secondary: '#A9A4BB',
+            muted: '#777187',
+          },
+          status: {
+            ram: '#34D399',
+            alert: '#F87171',
+            locked: '#A78BFA',
+          }
+        },
+      },
+      fontFamily: {
+        serif: ['Newsreader', 'Georgia', 'serif'],
+        sans: ['Geist', 'Inter', 'sans-serif'],
+        mono: ['Geist Mono', 'JetBrains Mono', 'monospace'],
+      },
+      boxShadow: {
+        'glow-violet': '0 0 32px -8px rgba(157, 139, 255, 0.15)',
+        'composer': '0 12px 40px -10px rgba(0, 0, 0, 0.7)',
+        'drawer': '0 -16px 48px rgba(0, 0, 0, 0.85)',
+      },
+    },
+  },
+  plugins: [],
+};
+export default config;
+```
+
+---
+
+## 2. Core State Management & Data Schema
+
+### Directed Acyclic Graph (DAG) for Thought Trails
+Hush represents dialogues as non-linear immutable nodes rather than a flat message array.
+
+```typescript
+// types/hush.ts
+
+export type ConversationStyle = 
+  | 'quick-fix'       // Concise, immediate response
+  | 'explain-it'      // Dialectic & foundational explanation
+  | 'think-with-me'   // Collaborative thinking & exploration
+  | 'challenge-me';   // Rigorous critique & counter-arguments
+
+export interface ThoughtNode {
+  id: string;                    // e.g. "node-01" or crypto hash
+  section: string;               // e.g. "§ 01.1"
+  parentId: string | null;       // null for root question
+  author: 'user' | 'assistant';
+  content: string;
+  timestamp: number;
+  metadata?: {
+    model?: string;              // "llama3.2:3b"
+    tokensPerSecond?: number;    // 48.2
+    firstTokenMs?: number;       // 284
+    branchLabel?: string;        // "Branch #02 · Zero-Trace Purge"
+    codeLanguage?: string;
+  };
+}
+
+export interface ThoughtTrail {
+  id: string;
+  title: string;
+  anchorNodeId: string;         // The parent node from which this branch sprouted
+  anchorTurn: string;           // e.g. "Turn 1, § 01.3"
+  activeNodeId: string;
+  nodeIds: string[];
+  turnsCount: number;
+  cachedMemoryBytes: number;
+}
+
+export interface OllamaRuntimeState {
+  status: 'ready' | 'connecting' | 'unavailable' | 'generating';
+  model: string;
+  endpoint: string;             // default: "http://localhost:11434"
+  tokensPerSec: number;
+  vramUsageGb: number;
+  vramTotalGb: number;
+  networkEgressKb: number;      // 0.0 KB (Airgapped invariant)
+  isRamIsolated: boolean;
+}
+```
+
+---
+
+## 3. High-Priority Component Library Hierarchy
+
+```
+components/
+├── shell/
+│   ├── HushHeader.tsx           # Global wordmark, model pill, RAM indicator, trail counter
+│   ├── NavigationSidebar.tsx    # Desktop collapsible stream/trails/runtime sidebar
+│   └── MobileTabBar.tsx         # Mobile bottom bar (Sanctuary, Trails, Ollama, Vault)
+├── conversation/
+│   ├── EditorialMonograph.tsx   # Markdown renderer with drop-cap, section tags, mono callouts
+│   ├── UserQueryNode.tsx        # Minimal quote box with anchor breadcrumbs
+│   ├── ContextualActionBar.tsx  # [Branch Trail], [Challenge Me], [Extract], [Copy]
+│   └── CodeBlock.tsx            # Syntax highlighted block with one-tap copy
+├── composer/
+│   ├── FloatingComposer.tsx     # Multiline auto-expanding textarea, shortcut hints
+│   ├── StyleSelector.tsx        # Pill switcher: Quick Fix, Explain It, Think With Me, Challenge
+│   └── BranchAnchorBanner.tsx   # "Branching from § 01.1 · Node #02 [Cancel]"
+├── trails/
+│   ├── ThoughtTrailsPanel.tsx   # Desktop right drawer (DAG tree, active trail, branch cards)
+│   ├── ThoughtTrailsSheet.tsx   # Mobile 390px swipeable bottom sheet
+│   └── BranchCard.tsx           # Trail branch card with instant "Switch" trigger
+└── runtime/
+    ├── SovereignEngineModal.tsx # Runtime telemetry inspector (RAM, tokens/sec, zero egress)
+    └── ZeroPurgeButton.tsx      # Immediate memory zero-fill wipe trigger (Ctrl/Cmd+K)
+```
+
+---
+
+## 4. Key React Component Implementations
+
+### A. Contextual Composer (`components/composer/FloatingComposer.tsx`)
+
+```tsx
+'use client';
+
+import React, { useState, useRef, useEffect } from 'react';
+import { ArrowUp, Paperclip, Sparkles, X } from 'lucide-react';
+import { ConversationStyle } from '@/types/hush';
+
+interface FloatingComposerProps {
+  activeBranchAnchor?: { id: string; section: string } | null;
+  onClearBranch: () => void;
+  onSubmit: (prompt: string, style: ConversationStyle) => void;
+  isStreaming?: boolean;
+}
+
+export const FloatingComposer: React.FC<FloatingComposerProps> = ({
+  activeBranchAnchor,
+  onClearBranch,
+  onSubmit,
+  isStreaming = false,
+}) => {
+  const [prompt, setPrompt] = useState('');
+  const [style, setStyle] = useState<ConversationStyle>('think-with-me');
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      if (prompt.trim() && !isStreaming) {
+        onSubmit(prompt.trim(), style);
+        setPrompt('');
+      }
+    }
+  };
+
+  return (
+    <div className="w-full max-w-3xl mx-auto px-4">
+      {/* Branching Anchor Notification if user is forking */}
+      {activeBranchAnchor && (
+        <div className="flex items-center justify-between px-3 py-1.5 mb-2 bg-[#1b1b22] border border-[#343044] rounded-lg text-xs text-[#C4B5FD]">
+          <span className="flex items-center gap-1.5 font-mono">
+            <span className="w-2 h-2 rounded-full bg-[#9D8BFF] animate-pulse" />
+            Branching from {activeBranchAnchor.section}
+          </span>
+          <button 
+            onClick={onClearBranch}
+            className="flex items-center gap-1 text-[#777187] hover:text-[#F3F0FA] transition-colors"
+          >
+            <span>Cancel fork</span>
+            <X size={12} />
+          </button>
+        </div>
+      )}
+
+      {/* Main Composer Box */}
+      <div className="relative bg-[#12121B] border border-[#343044] focus-within:border-[#9D8BFF] rounded-2xl shadow-composer transition-all duration-200 p-3.5">
+        <textarea
+          ref={textareaRef}
+          value={prompt}
+          onChange={(e) => setPrompt(e.target.value)}
+          onKeyDown={handleKeyDown}
+          rows={3}
+          placeholder="Whisper a hypothesis, sketch an inquiry, or let a thought unfurl..."
+          className="w-full bg-transparent text-[#F3F0FA] placeholder-[#777187] text-sm md:text-base resize-none focus:outline-none font-sans"
+        />
+
+        <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-[#181722]">
+          {/* Cognitive Styles Selector */}
+          <div className="flex items-center gap-1.5 overflow-x-auto py-1">
+            {[
+              { id: 'quick-fix', label: 'Quick Fix' },
+              { id: 'explain-it', label: 'Explain It' },
+              { id: 'think-with-me', label: 'Think With Me' },
+              { id: 'challenge-me', label: 'Challenge Me' },
+            ].map((mode) => (
+              <button
+                key={mode.id}
+                type="button"
+                onClick={() => setStyle(mode.id as ConversationStyle)}
+                className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all ${
+                  style === mode.id
+                    ? 'bg-[#9D8BFF]/20 text-[#C4B5FD] border border-[#9D8BFF]/40 shadow-sm'
+                    : 'bg-[#181722] text-[#A9A4BB] hover:text-[#F3F0FA] border border-transparent'
+                }`}
+              >
+                {mode.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Action Cues & Send Button */}
+          <div className="flex items-center gap-3">
+            <span className="hidden sm:inline text-[11px] font-mono text-[#777187]">
+              Enter ↵ to send
+            </span>
+            <button
+              onClick={() => {
+                if (prompt.trim() && !isStreaming) {
+                  onSubmit(prompt.trim(), style);
+                  setPrompt('');
+                }
+              }}
+              disabled={!prompt.trim() || isStreaming}
+              aria-label="Send query"
+              className="p-2.5 bg-[#9D8BFF] text-[#0B0B12] rounded-xl hover:bg-[#C4B5FD] disabled:opacity-40 disabled:hover:bg-[#9D8BFF] transition-all flex items-center justify-center font-bold"
+            >
+              <ArrowUp size={16} strokeWidth={2.5} />
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+```
+
+---
+
+### B. Editorial Monograph Response Card (`components/conversation/EditorialMonograph.tsx`)
+
+```tsx
+'use client';
+
+import React from 'react';
+import { ThoughtNode } from '@/types/hush';
+import { GitBranch, ShieldCheck, Copy, Terminal } from 'lucide-react';
+
+interface EditorialMonographProps {
+  node: ThoughtNode;
+  onForkBranch: (nodeId: string, section: string) => void;
+  onChallenge: (nodeId: string) => void;
+}
+
+export const EditorialMonograph: React.FC<EditorialMonographProps> = ({
+  node,
+  onForkBranch,
+  onChallenge,
+}) => {
+  return (
+    <article className="w-full max-w-3xl mx-auto my-8 bg-[#12121B] border border-[#343044] rounded-2xl p-6 md:p-8 space-y-6">
+      {/* Editorial Header */}
+      <header className="flex items-center justify-between border-b border-[#1f1f26] pb-4 text-xs font-mono text-[#A9A4BB]">
+        <div className="flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-[#C4B5FD]" />
+          <span className="uppercase tracking-wider font-semibold text-[#F3F0FA]">
+            Hush Monograph · {node.section}
+          </span>
+          <span className="text-[#777187]">· {node.metadata?.firstTokenMs ?? 280}ms</span>
+        </div>
+        <button
+          onClick={() => navigator.clipboard.writeText(node.content)}
+          className="flex items-center gap-1.5 text-[#777187] hover:text-[#C4B5FD] transition-colors"
+        >
+          <Copy size={13} />
+          <span>Extract</span>
+        </button>
+      </header>
+
+      {/* Editorial Typography Body */}
+      <div className="prose prose-invert max-w-none text-[#F3F0FA] font-serif leading-relaxed text-base md:text-lg">
+        {/* Render markdown or styled paragraphs with Newsreader styling */}
+        <p className="first-letter:text-4xl first-letter:font-bold first-letter:text-[#C4B5FD] first-letter:float-left first-letter:mr-2">
+          {node.content}
+        </p>
+      </div>
+
+      {/* Invariant / Memory Footprint Badge */}
+      <div className="flex items-start gap-3 p-3.5 bg-[#0e0e15] border border-[#343044]/60 rounded-xl text-xs">
+        <ShieldCheck className="text-[#34D399] shrink-0 mt-0.5" size={16} />
+        <div>
+          <div className="font-semibold text-[#F3F0FA]">No Retained Footprint</div>
+          <p className="text-[#A9A4BB] font-sans mt-0.5">
+            Node allocated strictly in volatile RAM (/dev/shm). Closing the browser executes zero-overwrite teardown.
+          </p>
+        </div>
+      </div>
+
+      {/* Contextual Answer Action Triggers */}
+      <footer className="pt-2 flex flex-wrap items-center gap-2.5">
+        <button
+          onClick={() => onForkBranch(node.id, node.section)}
+          className="flex items-center gap-2 px-3.5 py-2 bg-[#242230] hover:bg-[#9D8BFF]/20 text-[#C4B5FD] border border-[#343044] hover:border-[#9D8BFF] rounded-xl text-xs font-sans font-medium transition-all"
+        >
+          <GitBranch size={14} />
+          <span>Branch Trail</span>
+        </button>
+        <button
+          onClick={() => onChallenge(node.id)}
+          className="flex items-center gap-2 px-3.5 py-2 bg-[#181722] hover:bg-[#242230] text-[#A9A4BB] hover:text-[#F3F0FA] border border-[#343044] rounded-xl text-xs font-sans transition-all"
+        >
+          <Sparkles size={14} />
+          <span>Challenge Me</span>
+        </button>
+      </footer>
+    </article>
+  );
+};
+```
+
+---
+
+### C. Local Ollama Client Bridge (Airgapped API Route)
+
+```typescript
+// app/api/chat/route.ts
+// Handles streaming responses directly from the local Ollama instance without telemetry
+
+export const runtime = 'nodejs';
+
+export async function POST(req: Request) {
+  const { prompt, style, history } = await req.json();
+
+  const systemPrompts: Record<string, string> = {
+    'quick-fix': 'You are Hush. Provide direct, concise, high-signal answers with zero preamble.',
+    'explain-it': 'You are Hush. Explain concepts from first principles with clear, approachable prose.',
+    'think-with-me': 'You are Hush. Be an intellectual collaborator. Explore tradeoffs, questions, and ideas together.',
+    'challenge-me': 'You are Hush. Act as a rigorous dialectic counterweight. Interrogate assumptions and offer counterarguments.',
+  };
+
+  const ollamaEndpoint = process.env.OLLAMA_HOST || 'http://127.0.0.1:11434';
+  const model = process.env.OLLAMA_MODEL || 'llama3.2:3b';
+
+  try {
+    const response = await fetch(`${ollamaEndpoint}/api/generate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model,
+        prompt,
+        system: systemPrompts[style] || systemPrompts['think-with-me'],
+        stream: true,
+      }),
+    });
+
+    if (!response.ok) {
+      return new Response(JSON.stringify({ error: 'Local Ollama runtime unreachable' }), {
+        status: 503,
+      });
+    }
+
+    // Forward the ReadableStream to client
+    return new Response(response.body, {
+      headers: {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+      },
+    });
+  } catch (error) {
+    return new Response(JSON.stringify({ error: 'Failed to connect to local Ollama daemon' }), {
+      status: 500,
+    });
+  }
+}
+```
+
+---
+
+## 5. Interaction State Checklist for Antigravity
+
+| State | Visual Treatment | Trigger / Invariant |
+|---|---|---|
+| **Empty Landing Sanctuary** | Large serif headline *"Quiet thoughts take form here"*, 4 curated suggestions, no sidebars open. | Default state on `localhost:3000` |
+| **Typing & Branch Active** | Highlighted badge above composer with anchor ID + clear button (`[Cancel fork]`). | Clicking `[Branch Trail]` on any monograph turn |
+| **Streaming Response** | Monograph card with pulsing indicator, live character stream, token rate counter in header. | EventSource active |
+| **Thought Trails (Desktop)** | Right persistent 360px sidebar with DAG tree cards and `[Switch]` branch triggers. | Top bar toggle button `⌘T` |
+| **Thought Trails (Mobile)** | Bottom sheet drawer with swipe handle and full RAM telemetry badges. | Bottom nav tab `Trails` or inline branch button |
+| **Zero-Trace Purge** | Immediate screen fade + local state zero-fill (`window.sessionStorage.clear()`). | `[Purge Memory Now]` or `⌘K` |
+| **Ollama Offline** | Telemetry pill turns red with `Ollama Offline (localhost:11434)` + retry button. | HTTP 503 from backend |
+
+})();
+</script>
+</div>
+<!-- STITCH_THREEJS_END:ANIMATION_15 -->
+</body>
+</html>
